@@ -11,12 +11,12 @@ Frontend-only batch rename utility for ComfyUI nodes.
   - Padding `2` -> `001, 002, 003...`
   - Padding `5` -> `000001, 000002, 000003...`
 
-  <video controls src="TutorialMoves/20260922-0544-16.2682765.mp4" title="Title"></video>
+  <video controls src=TutorialMoves/20260922-0544-16.2682765.mp4 title="Title"></video>
 
 - Prefix / Suffix
-  <video controls src="TutorialMoves/20260922-0545-56.0949856.mp4" title="Title"></video>
+  <video controls src=TutorialMoves/20260922-0545-56.0949856.mp4 title="Title"></video>
 - Find / Replace, optionally case-sensitive
-  <video controls src="TutorialMoves/20260922-0547-38.5940445.mp4" title="Title"></video>
+  <video controls src=TutorialMoves/20260922-0547-38.5940445.mp4 title="Title"></video>
 
 - Case conversion
   - `snake_case`
@@ -24,7 +24,7 @@ Frontend-only batch rename utility for ComfyUI nodes.
   - `PascalCase`
 - Preview before applying
 - Undo last rename (up to 20 operations in the current browser session)
-  <video controls src="TutorialMoves/20260922-0548-42.4430528.mp4" title="Title"></video>
+  <video controls src=TutorialMoves/20260922-0548-42.4430528.mp4 title="Title"></video>
 
 ## Install
 
