@@ -2,6 +2,9 @@ import { app } from "/scripts/app.js";
 
 const EXTENSION_NAME = "HOS.NodeRenamer";
 const COMMAND_ID = "hos.nodeRenamer.open";
+const VERSION = "0.1.1";
+const POSITION_ROW_TOLERANCE = 32;
+const naturalNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 const selectionOrder = [];
 const trackedNodes = new WeakSet();
@@ -81,6 +84,64 @@ function getSelectedNodesInOrder() {
   }
 
   return result;
+}
+
+function nodePosition(node) {
+  const pos = node?.pos;
+  if (Array.isArray(pos) || ArrayBuffer.isView(pos)) {
+    return {
+      x: Number(pos[0]) || 0,
+      y: Number(pos[1]) || 0,
+    };
+  }
+  return { x: 0, y: 0 };
+}
+
+function sortNodesByPosition(nodes) {
+  const pending = [...nodes].sort((a, b) => {
+    const pa = nodePosition(a);
+    const pb = nodePosition(b);
+    return (pa.y - pb.y) || (pa.x - pb.x) || nodeKey(a).localeCompare(nodeKey(b));
+  });
+
+  const rows = [];
+  for (const node of pending) {
+    const { y } = nodePosition(node);
+    const currentRow = rows.at(-1);
+    if (!currentRow || Math.abs(y - currentRow.anchorY) > POSITION_ROW_TOLERANCE) {
+      rows.push({ anchorY: y, nodes: [node] });
+    } else {
+      currentRow.nodes.push(node);
+    }
+  }
+
+  return rows.flatMap((row) =>
+    row.nodes.sort((a, b) => {
+      const pa = nodePosition(a);
+      const pb = nodePosition(b);
+      return (pa.x - pb.x) || (pa.y - pb.y) || nodeKey(a).localeCompare(nodeKey(b));
+    }),
+  );
+}
+
+function sortNodesByCurrentName(nodes) {
+  return [...nodes].sort((a, b) => {
+    const byName = naturalNameCollator.compare(currentTitle(a), currentTitle(b));
+    if (byName !== 0) return byName;
+    const pa = nodePosition(a);
+    const pb = nodePosition(b);
+    return (pa.y - pb.y) || (pa.x - pb.x) || nodeKey(a).localeCompare(nodeKey(b));
+  });
+}
+
+function getSelectedNodesForOperation() {
+  const nodes = getSelectedNodesInOrder();
+  if (activeMode !== "sequential") return nodes;
+
+  const sortMode = getControl("sort-order")?.value ?? "selection";
+  if (sortMode === "position") return sortNodesByPosition(nodes);
+  if (sortMode === "name") return sortNodesByCurrentName(nodes);
+  return nodes;
 }
 
 function tokenizeName(value) {
@@ -170,7 +231,7 @@ function withGraphChange(fn) {
 }
 
 function applyRename() {
-  const nodes = getSelectedNodesInOrder();
+  const nodes = getSelectedNodesForOperation();
   if (!nodes.length) {
     showStatus("No nodes are selected.", true);
     return;
@@ -222,7 +283,7 @@ function showStatus(message, error = false) {
 
 function refreshPreview() {
   if (!modal) return;
-  const nodes = getSelectedNodesInOrder();
+  const nodes = getSelectedNodesForOperation();
   const preview = getControl("preview");
   const count = getControl("count");
   if (!preview || !count) return;
@@ -285,7 +346,7 @@ function createModal() {
       @media(max-width:760px){.nnt-body{grid-template-columns:1fr}.nnt-left{border-right:0;border-bottom:1px solid #3d3f43}}
     </style>
     <div class="nnt-dialog" role="dialog" aria-modal="true" aria-label="Node Renamer">
-      <div class="nnt-head"><div class="nnt-title">Node Renamer</div><button class="nnt-close" title="Close">×</button></div>
+      <div class="nnt-head"><div class="nnt-title">Node Renamer <span style="font-size:11px;color:#8f949c;font-weight:500">v${VERSION}</span></div><button class="nnt-close" title="Close">×</button></div>
       <div class="nnt-body">
         <div class="nnt-left">
           <div class="nnt-tabs">
@@ -300,7 +361,14 @@ function createModal() {
             <div class="nnt-field"><label>Start Index</label><input id="nnt-start" type="number" step="1" value="1" /></div>
             <div class="nnt-field"><label>Padding</label><input id="nnt-padding" type="number" min="0" step="1" value="2" /></div>
             <div class="nnt-help">Padding means the number of leading-zero positions. Example: Padding 2 → 001, 002, 256. Padding 5 → 000001, 000002, 000256.</div>
-            <div class="nnt-help"><strong>Order:</strong> selection order (fixed)</div>
+            <div class="nnt-field"><label>Sort Order</label>
+              <select id="nnt-sort-order">
+                <option value="position" selected>Position (Top-Left → Right → Down)</option>
+                <option value="name">Current Node Name</option>
+                <option value="selection">Selection Order</option>
+              </select>
+            </div>
+            <div class="nnt-help">Position groups nearby Y positions into the same row, then sorts each row from left to right. Name uses natural numeric order (for example: Node_2 before Node_10).</div>
           </div>
 
           <div class="nnt-panel" data-mode="affix">
